@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Galeri Full Screen seperti Gallery HP</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0 0 140px 0;
+            background: #000;
+            overflow-x: hidden;
+        }
+        h1 {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            margin: 0;
+            padding: 15px;
+            z-index: 10;
+            font-family: Arial, sans-serif;
+        }
+        .info {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 10px;
+            z-index: 10;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+        }
+        .slide {
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .slide img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: cover; /* crop agar fill screen seperti gallery HP */
+            touch-action: pan-x pan-y pinch-zoom; /* enable pinch zoom & pan */
+            user-select: none;
+        }
+        .title {
+            position: absolute;
+            bottom: 160px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 26px;
+            font-family: Arial, sans-serif;
+            text-shadow: 2px 2px 6px black;
+            z-index: 2;
+        }
+        .audio-buttons {
+            position: absolute;
+            bottom: 80px;
+            z-index: 2;
+        }
+        .audio-btn {
+            background: rgba(0, 122, 255, 0.9);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            margin: 0 10px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .audio-btn:hover {
+            background: rgba(0, 100, 200, 0.9);
+        }
+        .audio-btn.active {
+            background: #28a745;
+        }
+
+        /* Player di bawah */
+        #player-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: #222;
+            padding: 15px;
+            box-shadow: 0 -6px 20px rgba(0,0,0,0.6);
+            text-align: center;
+            z-index: 1000;
+        }
+        #current-title {
+            color: white;
+            font-size: 18px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        #main-audio {
+            width: 90%;
+            max-width: 900px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Galeri Gambar seperti Gallery HP</h1>
+    <div class="info">Pinch / scroll wheel untuk zoom. Klik tombol untuk pilih audio.</div>
+
+    <div id="gallery"></div>
+
+    <div id="player-container">
+        <div id="current-title">Pilih audio dari salah satu gambar</div>
+        <audio id="main-audio" controls preload="metadata">
+            Browser Anda tidak mendukung pemutar audio.
+        </audio>
+    </div>
+
+    <script>
+        // DAFTAR GAMBAR DAN 2 PILIHAN AUDIO (file di folder assets/)
+        const items = [
+            {
+                title: "Pantai Indah Saat Senja",
+                image: "1.jpg",
+                audio1: { name: "Lagu Relaksasi", file: "1.mp3" },
+                audio2: { name: "Suara Ombak", file: "11.mp3" }
+            },
+            {
+                title: "Gunung Salju Megah",
+                image: "2.jpg",
+                audio1: { name: "Musik Epik", file: "2.mp3" },
+                audio2: { name: "Angin Gunung", file: "22.mp3" }
+            },
+            {
+                title: "Hutan Hijau yang Damai",
+                image: "3.jpg",
+                audio1: { name: "Burung Berkicau", file: "3.mp3" },
+                audio2: { name: "Hujan Ringan", file: "33.mp3" }
+            },
+            // Tambahkan lagi sesuai file di folder assets/
+        ];
+
+        const gallery = document.getElementById('gallery');
+        const audio = document.getElementById('main-audio');
+        const currentTitle = document.getElementById('current-title');
+
+        items.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'slide';
+
+            const img = document.createElement('img');
+            img.src = `assets/${item.image}`;
+            img.alt = item.title;
+
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'title';
+            titleDiv.textContent = item.title;
+
+            const buttonsDiv = document.createElement('div');
+            buttonsDiv.className = 'audio-buttons';
+
+            const btn1 = document.createElement('button');
+            btn1.className = 'audio-btn';
+            btn1.textContent = item.audio1.name;
+            btn1.onclick = (e) => {
+                e.stopPropagation();
+                audio.src = `assets/${item.audio1.file}`;
+                currentTitle.textContent = `\( {item.title} - \){item.audio1.name}`;
+                audio.play();
+                resetActiveButtons();
+                btn1.classList.add('active');
+            };
+
+            const btn2 = document.createElement('button');
+            btn2.className = 'audio-btn';
+            btn2.textContent = item.audio2.name;
+            btn2.onclick = (e) => {
+                e.stopPropagation();
+                audio.src = `assets/${item.audio2.file}`;
+                currentTitle.textContent = `\( {item.title} - \){item.audio2.name}`;
+                audio.play();
+                resetActiveButtons();
+                btn2.classList.add('active');
+            };
+
+            buttonsDiv.appendChild(btn1);
+            buttonsDiv.appendChild(btn2);
+
+            div.appendChild(img);
+            div.appendChild(titleDiv);
+            div.appendChild(buttonsDiv);
+            gallery.appendChild(div);
+        });
+
+        function resetActiveButtons() {
+            document.querySelectorAll('.audio-btn').forEach(b => b.classList.remove('active'));
+        }
+    </script>
+</body>
+</html>
