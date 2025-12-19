@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
+    <title>Buku Doa Katolik - Auto Scroll</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <style>
+        :root { --gold: #d4af37; }
+        body, html { margin: 0; padding: 0; background: #000; color: white; overflow: hidden; font-family: sans-serif; }
+
+        /* Container Scroll Atas Bawah */
+        #main-gallery {
+            height: 100vh;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            scroll-behavior: smooth; /* Membuat scroll tombol jadi halus */
+        }
+
+        .doa-slide {
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            scroll-snap-align: start;
+            background: #000;
+        }
+
+        .zoom-container { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; touch-action: none; }
+        .doa-image { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+        /* Tombol Navigasi Scroll Up/Down */
+        .scroll-nav {
+            position: fixed;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 2000;
+        }
+
+        .nav-circle {
+            width: 50px;
+            height: 50px;
+            background: rgba(212, 175, 55, 0.3);
+            border: 2px solid var(--gold);
+            border-radius: 50%;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+        }
+
+        /* Overlay UI */
+        header {
+            position: fixed; top: 0; width: 100%; z-index: 100;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+            padding: 15px 0; text-align: center;
+        }
+
+        .bottom-ui {
+            position: fixed; bottom: 0; width: 100%; z-index: 1000;
+            background: rgba(15, 15, 15, 0.95); border-top: 1px solid #333;
+            padding: 10px 0 25px 0; text-align: center;
+        }
+
+        .btn { background: #222; color: white; border: 1px solid var(--gold); padding: 8px 15px; border-radius: 5px; margin: 0 5px; }
+        .prayer-text-box {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 85%; max-height: 65%; background: rgba(0,0,0,0.95);
+            padding: 20px; border-radius: 15px; border: 1px solid var(--gold);
+            display: none; z-index: 3000; overflow-y: auto; text-align: center;
+        }
+        audio { width: 90%; height: 30px; filter: invert(1); margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="color:var(--gold); font-weight:bold;">BUKU DOA DIGITAL</div>
+</header>
+
+<div class="scroll-nav">
+    <div class="nav-circle" onclick="scrollGo(-1)">▲</div>
+    <div class="nav-circle" onclick="scrollGo(1)">▼</div>
+</div>
+
+<div id="main-gallery">
+    </div>
+
+<div class="prayer-text-box" id="modal-text">
+    <div id="text-content" style="white-space: pre-line; line-height: 1.6;"></div>
+    <br>
+    <button class="btn" style="width:100%" onclick="closeText()">TUTUP TEKS</button>
+</div>
+
+<div class="bottom-ui">
+    <div id="curr-title" style="font-size: 14px; margin-bottom: 5px; color: var(--gold);">Pilih Doa</div>
+    <div id="audio-btns"></div>
+    <audio id="audio-player" controls></audio>
+</div>
+
+<script>
+    const dataDoa = [
+        { id: 1, title: "1. Malaikat Tuhan", img: "1.jpg", text: "Maria menerima kabar dari Malaikat Tuhan...", audios: [{name: "Vokal 1", file: "1.mp3"}] },
+        { id: 2, title: "2. Doa Penyerahan", img: "2.jpg", text: "Tuhan Yesus, aku berserah...", audios: [{name: "Vokal 2", file: "2.mp3"}] },
+        { id: 3, title: "3. Koronka", img: "3.jpg", text: "Bapa yang Kekal...", audios: [{name: "Lagu", file: "3.mp3"}] }
+    ];
+
+    const gallery = document.getElementById('main-gallery');
+    let currentIdx = 0;
+
+    function loadDoa() {
+        dataDoa.forEach((item, index) => {
+            const slide = document.createElement('div');
+            slide.className = 'doa-slide';
+            slide.id = `slide-${index}`;
+            slide.innerHTML = `
+                <div class="zoom-container" id="z-cont-${index}">
+                    <img src="assets/${item.img}" class="doa-image" id="img-${index}">
+                </div>
+            `;
+            gallery.appendChild(slide);
+            setupZoom(`z-cont-${index}`, `img-${index}`);
+        });
+        updateUI();
+    }
+
+    // FUNGSI SCROLL OTOMATIS
+    function scrollGo(dir) {
+        currentIdx += dir;
+        if (currentIdx < 0) currentIdx = 0;
+        if (currentIdx >= dataDoa.length) currentIdx = dataDoa.length - 1;
+        
+        const target = document.getElementById(`slide-${currentIdx}`);
+        target.scrollIntoView({ behavior: 'smooth' });
+        updateUI();
+    }
+
+    // Deteksi Scroll Manual untuk update Judul & Tombol Audio
+    gallery.addEventListener('scroll', () => {
+        const index = Math.round(gallery.scrollTop / window.innerHeight);
+        if (index !== currentIdx) {
+            currentIdx = index;
+            updateUI();
+        }
+    });
+
+    function updateUI() {
+        const item = dataDoa[currentIdx];
+        document.getElementById('curr-title').innerText = item.title;
+        const btnArea = document.getElementById('audio-btns');
+        btnArea.innerHTML = `<button class="btn" onclick="openText()">📄 TEKS</button>`;
+        item.audios.forEach(aud => {
+            btnArea.innerHTML += `<button class="btn" onclick="playAudio('${aud.file}')">🎵 ${aud.name}</button>`;
+        });
+    }
+
+    function setupZoom(contId, imgId) {
+        const el = document.getElementById(contId);
+        const img = document.getElementById(imgId);
+        const mc = new Hammer.Manager(el);
+        mc.add(new Hammer.Pinch());
+        mc.add(new Hammer.Pan({ direction: Hammer.DIRECTION_ALL }));
+
+        let scale = 1, lastScale = 1, posX = 0, posY = 0, lastPosX = 0, lastPosY = 0;
+
+        mc.on("pinchmove", (e) => {
+            scale = Math.max(1, Math.min(lastScale * e.scale, 4));
+            // Matikan scroll gallery saat sedang zoom
+            gallery.style.overflowY = scale > 1.1 ? 'hidden' : 'scroll';
+            update();
+        });
+        mc.on("pinchend", () => { 
+            lastScale = scale; 
+            if(scale <= 1.1) { resetZoom(); }
+        });
+        mc.on("panmove", (e) => {
+            if (scale > 1) {
+                posX = lastPosX + e.deltaX;
+                posY = lastPosY + e.deltaY;
+                update();
+            }
+        });
+        mc.on("panend", () => { lastPosX = posX; lastPosY = posY; });
+
+        function resetZoom() {
+            scale = 1; posX = 0; posY = 0; lastPosX = 0; lastPosY = 0;
+            gallery.style.overflowY = 'scroll';
+            update();
+        }
+        function update() { img.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`; }
+    }
+
+    function openText() {
+        document.getElementById('text-content').innerText = dataDoa[currentIdx].text;
+        document.getElementById('modal-text').style.display = 'block';
+    }
+    function closeText() { document.getElementById('modal-text').style.display = 'none'; }
+    function playAudio(f) { const p = document.getElementById('audio-player'); p.src = `assets/${f}`; p.play(); }
+
+    load
