@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
+    <title>Buku Doa Katolik - Smart Zoom</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <style>
+        :root { --gold: #d4af37; }
+        body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; }
+
+        /* Container Slide */
+        #main-gallery {
+            height: 100vh;
+            overflow-y: scroll; /* Scroll utama */
+            scroll-snap-type: y mandatory;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Mode Terkunci saat Zoom */
+        .lock-scroll { overflow-y: hidden !important; }
+
+        .doa-slide {
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            scroll-snap-align: start;
+            background: #000;
+        }
+
+        .zoom-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: none;
+        }
+
+        .doa-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            will-change: transform;
+        }
+
+        /* Navigasi & UI */
+        header {
+            position: fixed; top: 0; width: 100%;
+            background: rgba(0,0,0,0.7); z-index: 1000;
+            padding: 10px 0; text-align: center;
+        }
+        .search-bar { width: 80%; padding: 10px; border-radius: 20px; border: none; background: #222; color: white; }
+
+        .prayer-text-box {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 85%; max-height: 60%; background: rgba(0,0,0,0.95);
+            padding: 20px; border-radius: 15px; border: 1px solid var(--gold);
+            display: none; z-index: 3000; overflow-y: auto; text-align: center;
+        }
+
+        .content-overlay { position: absolute; bottom: 120px; width: 100%; text-align: center; z-index: 5; }
+        .btn { background: rgba(255,255,255,0.1); border: 1px solid #444; color: white; padding: 10px 15px; border-radius: 20px; margin: 5px; }
+        
+        .player-bar {
+            position: fixed; bottom: 0; width: 100%; background: #111;
+            padding: 15px 0 30px; border-top: 1px solid #333; z-index: 4000; text-align: center;
+        }
+        audio { width: 90%; filter: invert(1); }
+    </style>
+</head>
+<body>
+
+<header>
+    <input type="text" id="search" class="search-bar" onkeyup="filterDoa()" placeholder="Cari Doa...">
+</header>
+
+<div id="main-gallery"></div>
+
+<div class="player-bar">
+    <div id="track-name" style="font-size:12px; color:#aaa; margin-bottom:5px;">Pilih doa untuk memutar audio</div>
+    <audio id="audio-player" controls></audio>
+</div>
+
+<script>
+    const dataDoa = [
+        { id: 1, title: "Malaikat Tuhan", img: "1.jpg", text: "Isi teks doa Anda di sini...", audios: [{name: "Vokal Pria", file: "1.mp3"}] },
+        { id: 2, title: "Doa Rosario", img: "2.jpg", text: "Isi teks doa Rosario...", audios: [{name: "Vokal Wanita", file: "2.mp3"}] }
+    ];
+
+    const gallery = document.getElementById('main-gallery');
+
+    function loadDoa() {
+        dataDoa.forEach((item, index) => {
+            const section = document.createElement('div');
+            section.className = 'doa-slide';
+            section.innerHTML = `
+                <div class="zoom-container" id="zoom-cont-${index}">
+                    <img src="assets/${item.img}" class="doa-image" id="img-${index}">
+                </div>
+                <div class="prayer-text-box" id="text-${index}">
+                    <p style="white-space: pre-line;">${item.text}</p>
+                    <button class="btn" onclick="toggleText(${index})">TUTUP</button>
+                </div>
+                <div class="content-overlay">
+                    <h3 style="text-shadow: 2px 2px 4px #000">${item.title}</h3>
+                    <button class="btn" onclick="toggleText(${index})">📄 Teks</button>
+                    ${item.audios.map(aud => `<button class="btn" onclick="playAudio('${aud.file}','${item.title}')">🎵 ${aud.name}</button>`).join('')}
+                </div>
+            `;
+            gallery.appendChild(section);
+            setupSmartZoom(`zoom-cont-${index}`, `img-${index}`);
+        });
+    }
+
+    function setupSmartZoom(contId, imgId) {
+        const container = document.getElementById(contId);
+        const img = document.getElementById(imgId);
+        const mc = new Hammer.Manager(container);
+
+        mc.add(new Hammer.Pinch());
+        mc.add(new Hammer.Pan({ direction: Hammer.DIRECTION_ALL, threshold: 0 }));
+
+        let scale = 1, lastScale = 1, posX = 0, posY = 0, lastPosX = 0, lastPosY = 0;
+
+        mc.on("pinchmove", (e) => {
+            scale = Math.max(1, Math.min(lastScale * e.scale, 4));
+            
+            // KUNCI SCROLL JIKA ZOOM > 1
+            if (scale > 1.05) {
+                gallery.classList.add('lock-scroll');
+            } else {
+                gallery.classList.remove('lock-scroll');
+            }
+            update();
+        });
+
+        mc.on("pinchend", () => { 
+            lastScale = scale;
+            if (scale <= 1.05) {
+                // RESET POSISI JIKA KEMBALI KECIL
+                scale = 1; posX = 0; posY = 0;
+                lastPosX = 0; lastPosY = 0;
+                gallery.classList.remove('lock-scroll');
+                update();
+            }
+        });
+
+        mc.on("panmove", (e) => {
+            if (scale > 1) {
+                posX = lastPosX + e.deltaX;
+                posY = lastPosY + e.deltaY;
+                update();
+            }
+        });
+
+        mc.on("panend", () => {
+            lastPosX = posX;
+            lastPosY = posY;
+        });
+
+        function update() {
+            img.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
+        }
+    }
+
+    function toggleText(i) {
+        const t = document.getElementById(`text-${i}`);
+        t.style.display = t.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function playAudio(f, t) {
+        const a = document.getElementById('audio-player');
+        a.src = `assets/${f}`; a.play();
+        document.getElementById('track-name').innerText = "Memutar: " + t;
+    }
+
+    loadDoa();
+</script>
+</body>
+</html>
