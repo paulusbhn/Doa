@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Buku Doa Katolik Digital</title>
+    <style>
+        :root {
+            --gold: #d4af37;
+            --dark: #000000;
+            --glass: rgba(0, 0, 0, 0.75);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--dark);
+            color: white;
+            font-family: 'Roboto', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Header Pencarian */
+        header {
+            position: fixed;
+            top: 0; width: 100%;
+            background: rgba(20, 20, 20, 0.9);
+            z-index: 1000;
+            padding: 10px 0;
+            text-align: center;
+            border-bottom: 1px solid var(--gold);
+        }
+
+        .search-bar {
+            width: 85%;
+            padding: 10px;
+            border-radius: 20px;
+            border: none;
+            background: #333;
+            color: white;
+            outline: none;
+        }
+
+        /* Gallery Full Screen */
+        .container {
+            margin-top: 60px;
+            margin-bottom: 140px;
+        }
+
+        .doa-slide {
+            height: 100vh;
+            width: 100vw;
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            position: relative;
+            scroll-snap-align: start;
+            border-bottom: 5px solid #111;
+        }
+
+        /* Overlay Teks Doa */
+        .prayer-text-box {
+            position: absolute;
+            top: 15%;
+            width: 85%;
+            max-height: 45%;
+            background: var(--glass);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid var(--gold);
+            overflow-y: auto;
+            display: none; /* Muncul saat klik tombol */
+            z-index: 10;
+            line-height: 1.6;
+            text-align: center;
+        }
+
+        .doa-title {
+            font-size: 24px;
+            color: var(--gold);
+            background: rgba(0,0,0,0.8);
+            padding: 10px 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            z-index: 5;
+            text-shadow: 2px 2px 4px #000;
+        }
+
+        /* Area Tombol */
+        .controls {
+            margin-bottom: 100px;
+            z-index: 5;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn {
+            background: var(--gold);
+            color: black;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-text { background: white; }
+        .btn-active { background: #28a745 !important; color: white; }
+
+        /* Player Bar di Bawah */
+        .player-bar {
+            position: fixed;
+            bottom: 0; left: 0; width: 100%;
+            background: #1a1a1a;
+            padding: 15px;
+            border-top: 2px solid var(--gold);
+            z-index: 2000;
+            text-align: center;
+        }
+
+        audio { width: 90%; height: 35px; }
+
+        .current-info {
+            font-size: 12px;
+            color: var(--gold);
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <input type="text" id="search" class="search-bar" onkeyup="filterDoa()" placeholder="Cari Doa Katolik...">
+</header>
+
+<div class="container" id="main-gallery">
+    </div>
+
+<div class="player-bar">
+    <div id="track-name" class="current-info">Pilih audio pada gambar</div>
+    <audio id="audio-player" controls></audio>
+</div>
+
+<script>
+    // DATA DOA - Anda bisa menambah data di sini
+    const dataDoa = [
+        {
+            id: 1,
+            title: "1",
+            img: "1.jpg",
+            text: "Maria menerima kabar dari Malaikat Tuhan...\n(Isi lengkap teks doa Anda di sini)",
+            audios: [
+                { name: "Audio 1", file: "1.mp3" },
+                { name: "Audio 2", file: "11.mp3" }
+            ]
+        },
+        {
+            id: 2,
+            title: "2",
+            img: "2.jpg",
+            text: "St. Michael Malaikat Agung, belalah kami...\n(Isi lengkap teks doa Anda di sini)",
+            audios: [
+                { name: "Doa Pria", file: "2.mp3" },
+                { name: "Doa Wanita", file: "22.mp3" }
+            ]
+        },
+        {
+            id: 3,
+            title: "Ratu Surga",
+            img: "3.jpg",
+            text: "Ratu Surga bersukacitalah, Alleluia...\n(Isi lengkap teks doa Anda di sini)",
+            audios: [
+                { name: "Lagu", file: "3.mp3" },
+                { name: "Daras", file: "33.mp3" }
+            ]
+        }
+    ];
+
+    const gallery = document.getElementById('main-gallery');
+    const player = document.getElementById('audio-player');
+    const trackName = document.getElementById('track-name');
+
+    // Generate Tampilan
+    function loadDoa() {
+        gallery.innerHTML = '';
+        dataDoa.forEach((item, index) => {
+            const section = document.createElement('div');
+            section.className = 'doa-slide';
+            section.style.backgroundImage = `url('assets/${item.img}')`;
+            
+            // Box Teks
+            const textBox = document.createElement('div');
+            textBox.className = 'prayer-text-box';
+            textBox.id = `text-${index}`;
+            textBox.style.whiteSpace = "pre-line";
+            textBox.innerText = item.text;
+
+            // Judul
+            const title = document.createElement('div');
+            title.className = 'doa-title';
+            title.innerText = item.title;
+
+            // Tombol
+            const btnArea = document.createElement('div');
+            btnArea.className = 'controls';
+
+            const btnTeks = document.createElement('button');
+            btnTeks.className = 'btn btn-text';
+            btnTeks.innerText = "📄 Lihat Teks";
+            btnTeks.onclick = () => {
+                const isHidden = textBox.style.display === 'none' || textBox.style.display === '';
+                textBox.style.display = isHidden ? 'block' : 'none';
+                btnTeks.innerText = isHidden ? "❌ Tutup Teks" : "📄 Lihat Teks";
+            };
+
+            btnArea.appendChild(btnTeks);
+
+            // Tombol Audio
+            item.audios.forEach(aud => {
+                const btnAud = document.createElement('button');
+                btnAud.className = 'btn';
+                btnAud.innerHTML = `<img src="assets/play_btn.png" width="15"> ${aud.name}`;
+                btnAud.onclick = () => playMusic(aud.file, item.title, aud.name, btnAud);
+                btnArea.appendChild(btnAud);
+            });
+
+            section.appendChild(textBox);
+            section.appendChild(title);
+            section.appendChild(btnArea);
+            gallery.appendChild(section);
+        });
+    }
+
+    function playMusic(file, title, version, btn) {
+        player.src = `assets/${file}`;
+        player.play();
+        trackName.innerText = `Memutar: ${title} (${version})`;
+        
+        // Reset warna tombol active
+        document.querySelectorAll('.btn').forEach(b => b.classList.remove('btn-active'));
+        btn.classList.add('btn-active');
+    }
+
+    function filterDoa() {
+        const query = document.getElementById('search').value.toLowerCase();
+        document.querySelectorAll('.doa-slide').forEach((slide, idx) => {
+            const title = dataDoa[idx].title.toLowerCase();
+            slide.style.display = title.includes(query) ? 'flex' : 'none';
+        });
+    }
+
+    loadDoa();
+</script>
+
+</body>
+</html>
