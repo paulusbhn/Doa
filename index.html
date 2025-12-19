@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Buku Doa Katolik Digital</title>
+    <style>
+        :root {
+            --gold: #d4af37;
+            --dark: #000000;
+            --glass: rgba(0, 0, 0, 0.85);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--dark);
+            color: white;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden; /* Mencegah scroll double */
+        }
+
+        /* Header Pencarian */
+        header {
+            position: fixed;
+            top: 0; width: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            padding: 15px 0;
+            text-align: center;
+        }
+
+        .search-bar {
+            width: 80%;
+            padding: 12px 20px;
+            border-radius: 25px;
+            border: 1px solid #444;
+            background: #222;
+            color: white;
+            font-size: 16px;
+        }
+
+        /* Container Slide */
+        .container {
+            height: 100vh;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory; /* Efek scroll seperti TikTok/Reels */
+        }
+
+        .doa-slide {
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            scroll-snap-align: start;
+            background: black;
+        }
+
+        /* TEKNIK AGAR GAMBAR TIDAK TERPOTONG */
+        .img-wrapper {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
+        }
+
+        .doa-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain; /* Gambar akan terlihat utuh tanpa terpotong */
+        }
+
+        /* Overlay Konten */
+        .content-overlay {
+            position: absolute;
+            bottom: 120px; /* Di atas player bar */
+            width: 90%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none; /* Klik tembus ke bawah kecuali tombol */
+        }
+
+        .doa-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 8px rgba(0,0,0,1);
+            margin-bottom: 15px;
+            pointer-events: auto;
+        }
+
+        /* Teks Doa Floating */
+        .prayer-text-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 85%;
+            max-height: 70%;
+            background: var(--glass);
+            padding: 25px;
+            border-radius: 20px;
+            border: 1px solid var(--gold);
+            overflow-y: auto;
+            display: none;
+            z-index: 3000;
+            line-height: 1.6;
+            text-align: center;
+            pointer-events: auto;
+        }
+
+        /* Area Tombol */
+        .controls {
+            display: flex;
+            gap: 10px;
+            pointer-events: auto;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 10px 15px;
+            border-radius: 50px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn-active { background: var(--gold) !important; color: black; border: none; }
+
+        /* Player Bar Minimalis Android */
+        .player-bar {
+            position: fixed;
+            bottom: 0; left: 0; width: 100%;
+            background: #111;
+            padding: 20px 10px 30px 10px;
+            border-top: 1px solid #333;
+            z-index: 4000;
+            text-align: center;
+        }
+
+        audio { width: 90%; filter: invert(100%); height: 30px; }
+
+        .current-info {
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 10px;
+        }
+
+        /* Tombol Close Teks */
+        .close-btn {
+            margin-top: 15px;
+            color: var(--gold);
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <input type="text" id="search" class="search-bar" onkeyup="filterDoa()" placeholder="Cari Doa...">
+</header>
+
+<div class="container" id="main-gallery">
+    </div>
+
+<div class="player-bar">
+    <div id="track-name" class="current-info">Pilih audio untuk memutar</div>
+    <audio id="audio-player" controls></audio>
+</div>
+
+<script>
+    const dataDoa = [
+        {
+            id: 1,
+            title: "Malaikat Tuhan (Angelus)",
+            img: "1.jpg",
+            text: "Maria menerima kabar dari Malaikat Tuhan...\n\nBahwa ia akan mengandung dari Roh Kudus.\n\nSalam Maria...",
+            audios: [{ name: "Audio 1", file: "1.mp3" }, { name: "Audio 2", file: "11.mp3" }]
+        },
+        {
+            id: 2,
+            title: "Doa Santo Mikael",
+            img: "2.jpg",
+            text: "Santo Mikael Malaikat Agung, belalah kami dalam pertempuran...\n\nJadilah pelindung kami melawan kejahatan dan jerat setan.",
+            audios: [{ name: "Suara Pria", file: "2.mp3" }]
+        }
+    ];
+
+    const gallery = document.getElementById('main-gallery');
+    const player = document.getElementById('audio-player');
+    const trackName = document.getElementById('track-name');
+
+    function loadDoa() {
+        gallery.innerHTML = '';
+        dataDoa.forEach((item, index) => {
+            const section = document.createElement('div');
+            section.className = 'doa-slide';
+            
+            section.innerHTML = `
+                <div class="img-wrapper">
+                    <img src="assets/${item.img}" class="doa-image" alt="${item.title}">
+                </div>
+                
+                <div class="prayer-text-box" id="text-box-${index}">
+                    <h3 style="color:var(--gold)">${item.title}</h3>
+                    <p style="white-space: pre-line;">${item.text}</p>
+                    <div class="close-btn" onclick="toggleText(${index})">TUTUP</div>
+                </div>
+
+                <div class="content-overlay">
+                    <div class="doa-title">${item.title}</div>
+                    <div class="controls">
+                        <button class="btn" onclick="toggleText(${index})">📄 Teks</button>
+                        ${item.audios.map(aud => `
+                            <button class="btn" onclick="playMusic('${aud.file}', '${item.title}', '${aud.name}', this)">
+                                🎵 ${aud.name}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            gallery.appendChild(section);
+        });
+    }
+
+    function toggleText(index) {
+        const box = document.getElementById(`text-box-${index}`);
+        box.style.display = (box.style.display === 'block') ? 'none' : 'block';
+    }
+
+    function playMusic(file, title, version, btn) {
+        player.src = `assets/${file}`;
+        player.play();
+        trackName.innerText = `Memutar: ${title} - ${version}`;
+        
+        document.querySelectorAll('.btn').forEach(b => b.classList.remove('btn-active'));
+        btn.classList.add('btn-active');
+    }
+
+    function filterDoa() {
+        const query = document.getElementById('search').value.toLowerCase();
+        const slides = document.querySelectorAll('.doa-slide');
+        dataDoa.forEach((item, idx) => {
+            slides[idx].style.display = item.title.toLowerCase().includes(query) ? 'flex' : 'none';
+        });
+    }
+
+    loadDoa();
+</script>
+
+</body>
+</html>
